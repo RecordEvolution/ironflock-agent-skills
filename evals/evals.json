@@ -1,0 +1,24 @@
+{
+  "skill_name": "ironflock-templates",
+  "fixture": "evals/fixtures/machine-monitor",
+  "evals": [
+    {
+      "id": 1,
+      "name": "overview-board",
+      "prompt": "This is my IronFlock app for monitoring our presses and lathes. Add a board to it: current temperature of every machine as gauges, a temperature and vibration trend over the last 24 hours, the current state of each machine in a table, and a tile with the total power draw right now.",
+      "expected_output": "A .ironflock/board-template.yml whose widgets bind to the measurements and machine_status tables with valueRef/tableRef, using only columns from data-template.yml, laid out so the page is filled, and which passes validate.py without errors."
+    },
+    {
+      "id": 2,
+      "name": "multi-page-navigation",
+      "prompt": "Build the board for this IronFlock app with two kinds of pages: an overview that lists all machines, and a detail page per machine (temperature, vibration and power charts for just that machine). Use a side navigation, and make the detail page work for any machine id without one page per machine.",
+      "expected_output": "A board-template.yml with a sidenav, a wildcard detail route under layout.subRoutes, and detail widgets that filter by the machine id taken from the route; passes validate.py."
+    },
+    {
+      "id": 3,
+      "name": "ports-params-data",
+      "prompt": "Our machine-monitor IronFlock app will get a small web UI on port 8080 that users should be able to open remotely, and the sampling interval (SAMPLE_INTERVAL in main.py) should be configurable per device between 1 and 60 seconds. We also want to record spindle speed in rpm with every measurement. Update the app's IronFlock templates and the code accordingly.",
+      "expected_output": "port-template.yml with one main http port 8080; env-template.yml with SAMPLE_INTERVAL numeric, min 1, max 60, default 5; data-template.yml gains a spindle speed column and main.py publishes it; all pass validate.py."
+    }
+  ]
+}

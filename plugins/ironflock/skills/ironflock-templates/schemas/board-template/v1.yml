@@ -1,0 +1,612 @@
+# -----------------------------------------------------------------------------
+# CANONICAL SOURCE  ironflock-landingpage/public/schemas/board-template/v1.yml
+# PUBLISHED AT      https://ironflock.com/schemas/board-template/v1.yml
+#
+# Copies in other repos are vendored verbatim. Edit the canonical file, then run
+# `bun run schemas:vendor` in ironflock-landingpage. Never edit a vendored copy.
+#
+# This URL rolls forward: additive changes only. A breaking change (new required
+# field, removed property, tightened enum) must ship as v2.yml — board templates
+# already in the field validate against v1 and would go red retroactively.
+#
+# Scope: the board structure the platform reads and writes. A widget's
+# `chartconfig` is checked here only for the shape of its data references; its
+# properties are defined by each widget's own definition-schema.json and are
+# checked by the ironflock-templates skill's validator against the widget
+# version the template pins.
+#
+# The board editor rewrites this file as plain YAML and drops comments, so a
+# `# yaml-language-server: $schema=` line does not survive a save. Associate the
+# schema in editor settings instead (yaml.schemas glob on
+# .ironflock/board-template.yml).
+# -----------------------------------------------------------------------------
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: https://ironflock.com/schemas/board-template/v1.yml
+title: IronFlock Board Template
+description: >
+  The board (dashboard) an app installs into every project it is installed in:
+  its widgets, how each widget is configured and bound to the app's data, the
+  pages they sit on, and the board style. Usually written by the board editor in
+  the IronFlock studio; it can be edited by hand.
+type: object
+required: [name, widgets, layout]
+additionalProperties: false
+
+properties:
+  name:
+    type: string
+    description: >-
+      Board name. The editor writes the app name here on every save. On install
+      it becomes the board's name in URLs (spaces and hyphens turn into
+      underscores), so it may only contain letters, digits, spaces, '.', '_' and
+      '-', must not be blank, and must not be one of the reserved words studio,
+      private, store or apps.
+    maxLength: 40
+    pattern: "^[ A-Za-z0-9._-]*[A-Za-z0-9._-][ A-Za-z0-9._-]*$"
+    not:
+      pattern: "^ *([Ss][Tt][Uu][Dd][Ii][Oo]|[Pp][Rr][Ii][Vv][Aa][Tt][Ee]|[Ss][Tt][Oo][Rr][Ee]|[Aa][Pp][Pp][Ss]) *$"
+
+  widgets:
+    type: array
+    description: >-
+      Every widget on the board. A widget is shown on each page whose gridLayout
+      has an entry with id equal to the widget's layout_id.
+    items:
+      $ref: "#/$defs/widget"
+
+  layout:
+    $ref: "#/$defs/page"
+    description: >-
+      The board's root page (route /). Further pages are nested under subRoutes;
+      each holds its own gridLayout.
+
+  style:
+    $ref: "#/$defs/style"
+
+  background_color:
+    type: string
+    deprecated: true
+    description: Legacy board colour from before `style` existed. Ignored; use style.background_color.
+
+  text_color:
+    type: string
+    deprecated: true
+    description: Legacy board colour from before `style` existed. Ignored; use style.text_color.
+
+$defs:
+  widget:
+    type: object
+    required: [layout_id, package_name]
+    additionalProperties: false
+    properties:
+      layout_id:
+        type: string
+        pattern: "^[^/?#]+$"
+        description: >-
+          The widget's id on this board. Must be a string (quote numeric ids such
+          as '0') and unique among the board's widgets. Page gridLayout entries
+          refer to it by id, and it appears in URLs, so it cannot contain '/',
+          '?' or '#'. The editor generates UUIDs.
+      package_name:
+        description: The widget type, i.e. its npm package name under @record-evolution.
+        anyOf:
+          - enum:
+              - widget-doughnut
+              - widget-embed
+              - widget-filter-calendar
+              - widget-filter-dropdown
+              - widget-form
+              - widget-gauge
+              - widget-heatmap
+              - widget-image
+              - widget-label
+              - widget-linechart
+              - widget-mapbox
+              - widget-markdown
+              - widget-navbar
+              - widget-navbutton
+              - widget-overlay
+              - widget-scada
+              - widget-sidenav
+              - widget-signal
+              - widget-statehistory
+              - widget-switch
+              - widget-table
+              - widget-textbox
+              - widget-toast
+              - widget-value
+          - type: string
+            pattern: "^widget-[a-z0-9-]+$"
+      version:
+        anyOf:
+          - type: string
+            pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+          - type: "null"
+        description: >-
+          Pinned widget version (x.y.z). The board renders exactly this version,
+          so chartconfig must match this version's definition schema. Installing
+          falls back to the newest version when the platform does not know the
+          pinned one. Omitted means the newest; the editor pins every widget on
+          its first save.
+      chartconfig:
+        description: >-
+          The widget's configuration. Its properties are defined by the widget's
+          definition-schema.json. Literal values carry a type prefix ($str:,
+          $num:, $bool:); a property can instead hold a data reference
+          ({valueRef: ...} for a single value, {tableRef: ...} for a list).
+        anyOf:
+          - $ref: "#/$defs/configObject"
+          - type: "null"
+      custom_style:
+        description: Per-widget overrides of the board style's tile colours.
+        anyOf:
+          - $ref: "#/$defs/customStyle"
+          - type: "null"
+      widget_config:
+        type: object
+        deprecated: true
+        description: >-
+          Legacy wrapper around chartconfig, custom_style, version and
+          package_name. Still read; the board editor flattens it on the next save.
+
+  configValue:
+    anyOf:
+      - type: string
+      - type: number
+      - type: boolean
+      - type: "null"
+      - type: array
+        items:
+          $ref: "#/$defs/configValue"
+      - $ref: "#/$defs/configObject"
+
+  configObject:
+    type: object
+    description: >-
+      A chartconfig object. An object holding a valueRef or tableRef is a data
+      binding: it replaces the literal value at that position and has no other
+      keys.
+    properties:
+      valueRef:
+        $ref: "#/$defs/valueRef"
+      tableRef:
+        $ref: "#/$defs/tableRef"
+    additionalProperties:
+      $ref: "#/$defs/configValue"
+    dependentSchemas:
+      valueRef:
+        maxProperties: 1
+      tableRef:
+        maxProperties: 1
+
+  valueRef:
+    type: object
+    description: >-
+      Binds a single value at a scalar position: the newest value of one column,
+      or one aggregate of it over the time window (queryParams.series with
+      limit 1).
+    required: [tablename, column]
+    additionalProperties: false
+    properties:
+      tablename:
+        type: string
+        minLength: 1
+        description: A table or transform of this app's data-template.yml, the system table error-logs, or a table of the app named in provider_app.
+      column:
+        type: string
+        minLength: 1
+        description: >-
+          Column id, or a path into a json column (payload.sensor.value). May
+          contain {{param}} (URL query parameter) and {segment-N} (route
+          segment) placeholders.
+      queryParams:
+        $ref: "#/$defs/queryParams"
+      provider_app:
+        $ref: "#/$defs/providerApp"
+      provider_stage:
+        $ref: "#/$defs/providerStage"
+      swarm_app_databackend_key:
+        deprecated: true
+        description: Project-local backend key. The editor strips it on save and the platform sets it on install; never write it.
+
+  tableRef:
+    type: object
+    description: >-
+      Binds a list at an array position: each row (after filters, time window,
+      aggregation and limit) becomes one array item shaped by format. Rows arrive
+      oldest first.
+    required: [tablename, format, queryParams]
+    additionalProperties: false
+    properties:
+      tablename:
+        type: string
+        minLength: 1
+        description: A table or transform of this app's data-template.yml, the system table error-logs, or a table of the app named in provider_app.
+      format:
+        description: >-
+          Template for one array item, shaped like the items of the bound array
+          in the widget's definition schema (an object for an array of objects,
+          a list for an array of arrays). String leaves are column ids or json
+          paths; constants need a $str:/$num:/$bool: prefix. Raw numbers and
+          booleans are not allowed: they make the whole item null.
+        anyOf:
+          - type: object
+            additionalProperties:
+              $ref: "#/$defs/formatValue"
+          - type: array
+            items:
+              $ref: "#/$defs/formatValue"
+      queryParams:
+        $ref: "#/$defs/queryParams"
+      provider_app:
+        $ref: "#/$defs/providerApp"
+      provider_stage:
+        $ref: "#/$defs/providerStage"
+      swarm_app_databackend_key:
+        deprecated: true
+        description: Project-local backend key. The editor strips it on save and the platform sets it on install; never write it.
+
+  formatValue:
+    anyOf:
+      - type: string
+      - type: "null"
+      - type: array
+        items:
+          $ref: "#/$defs/formatValue"
+      - type: object
+        description: A nested item object. Data bindings cannot be nested inside a format.
+        properties:
+          valueRef: false
+          tableRef: false
+        additionalProperties:
+          $ref: "#/$defs/formatValue"
+
+  queryParams:
+    type: object
+    description: >-
+      Which rows a binding reads. Applied in this order: time window, filterAnd,
+      aggregation (series), limit. On transforms only limit, offset and
+      filterAnd take effect.
+    required: [limit]
+    additionalProperties: false
+    properties:
+      limit:
+        type: integer
+        minimum: 1
+        maximum: 3000
+        description: Maximum rows; the newest are kept. Use 1 for a valueRef.
+      offset:
+        anyOf:
+          - type: integer
+            minimum: 0
+          - type: "null"
+      windowPeriod:
+        description: >-
+          Unit of the rolling time window. The window applies only when
+          windowPeriod, windowLength and nowMinusPeriods are all set.
+        anyOf:
+          - enum: [second, minute, hour, day, week, month, year]
+          - type: "null"
+      windowLength:
+        description: Window length in windowPeriod units.
+        anyOf:
+          - type: number
+            exclusiveMinimum: 0
+          - type: "null"
+      nowMinusPeriods:
+        description: Window end as periods before now; 0 means up to now (live).
+        anyOf:
+          - type: number
+            minimum: 0
+          - type: "null"
+      timeStartParam:
+        description: >-
+          Name of the URL parameter (a filter-calendar's startKey) whose epoch-ms
+          value replaces the window start. Only applies with a complete window.
+        anyOf:
+          - type: string
+          - type: "null"
+      timeEndParam:
+        description: Like timeStartParam, for the window end (a filter-calendar's endKey).
+        anyOf:
+          - type: string
+          - type: "null"
+      filterAnd:
+        anyOf:
+          - type: array
+            description: Filters combined with AND.
+            items:
+              $ref: "#/$defs/filterNode"
+          - type: "null"
+      series:
+        anyOf:
+          - $ref: "#/$defs/series"
+          - type: "null"
+      timeRange:
+        deprecated: true
+        description: Derived at runtime from the window and ignored when stored; omit it.
+
+  filterNode:
+    anyOf:
+      - $ref: "#/$defs/filterPredicate"
+      - $ref: "#/$defs/latestMarker"
+      - $ref: "#/$defs/filterGroup"
+
+  filterPredicate:
+    type: object
+    required: [column, operator, dataType]
+    additionalProperties: false
+    properties:
+      column:
+        type: string
+        minLength: 1
+        description: Column id or json path.
+      operator:
+        enum: ["=", "!=", "<>", ">", ">=", "<", "<=", LIKE, ILIKE, NOT LIKE, NOT ILIKE, IN, NOT IN, IS NULL, IS NOT NULL]
+      value:
+        description: >-
+          The comparison value; a list for IN / NOT IN; omitted for IS NULL /
+          IS NOT NULL. With useFilter it is the URL parameter name (a
+          filter-dropdown's parameterKey); with useRoute it is the index of the
+          route segment ('2' in /machines/press-1 is press-1).
+        anyOf:
+          - type: string
+          - type: number
+          - type: boolean
+          - type: "null"
+          - type: array
+            items:
+              anyOf:
+                - type: string
+                - type: number
+      dataType:
+        enum: [string, numeric, bigint, timestamp, boolean, json]
+        description: Type of the column (of the leaf value for a json path). Filters without it are not applied by the database.
+      useFilter:
+        anyOf:
+          - type: boolean
+          - type: "null"
+      useRoute:
+        anyOf:
+          - type: boolean
+          - type: "null"
+
+  latestMarker:
+    type: object
+    description: >-
+      {latest: true}: keep only the newest row per entity (the table's
+      maintainLatestFlagFor columns). The editor writes it as {latest: true,
+      column: '', operator: '=', value: '', dataType: boolean}. Ignored when
+      aggregating.
+    required: [latest]
+    properties:
+      latest:
+        const: true
+
+  filterGroup:
+    type: object
+    required: [combinator, filters]
+    additionalProperties: false
+    properties:
+      combinator:
+        enum: [AND, OR]
+      filters:
+        type: array
+        items:
+          $ref: "#/$defs/filterNode"
+
+  series:
+    type: object
+    description: >-
+      Aggregate in the database instead of returning raw rows. Needs a complete
+      time window. On a tableRef, x mapped to tsp gives a time series and x
+      mapped to another column one value per category; on a valueRef (limit 1)
+      one value over the whole window.
+    required: [method]
+    additionalProperties: false
+    properties:
+      method:
+        enum: [AVG, SUM, COUNT, MIN, MAX, FIRST, LAST]
+        description: AVG and SUM need numeric columns; tsp can only be counted.
+      bucket:
+        description: Fixed bucket size for a time series; omit to size buckets to the widget's width.
+        anyOf:
+          - type: object
+            required: [length, period]
+            additionalProperties: false
+            properties:
+              length:
+                type: integer
+                minimum: 1
+              period:
+                enum: [second, minute, hour, day, week]
+          - type: "null"
+
+  providerApp:
+    description: >-
+      Lowercase name of another app whose table this binding reads. That app
+      must be listed under consumes in this app's data-template.yml, and the
+      project must have granted the data access.
+    anyOf:
+      - type: string
+        pattern: "^[a-z0-9._-]+$"
+      - type: "null"
+
+  providerStage:
+    description: Stage of the provider app the editor bound to. Installed boards always read PROD.
+    anyOf:
+      - enum: [DEV, PROD]
+      - type: "null"
+
+  customStyle:
+    type: object
+    additionalProperties: false
+    properties:
+      text_color:
+        type: string
+      tile_background_color:
+        type: string
+      tile_border_color:
+        type: string
+      tile_border_radius:
+        type: string
+        description: CSS length, e.g. 8px.
+
+  page:
+    type: object
+    required: [gridLayout]
+    additionalProperties: false
+    properties:
+      gridLayout:
+        type: array
+        description: Widget positions on this page, in grid cells of style.columns × style.rows.
+        items:
+          $ref: "#/$defs/position"
+      subRoutes:
+        type: object
+        description: >-
+          Child pages by route segment: subRoutes.machines is the page at
+          /machines, its own subRoutes.detail is /machines/detail. A '*'
+          segment matches any value (/machines/* serves /machines/press-1).
+        propertyNames:
+          pattern: "^[A-Za-z0-9._*-]+$"
+          not:
+            enum: [".", ".."]
+        additionalProperties:
+          $ref: "#/$defs/page"
+      groups:
+        type: array
+        description: Widget groups the editor moves together. Groups with fewer than two widgets are dropped.
+        items:
+          type: object
+          required: [id, widgetIds]
+          additionalProperties: false
+          properties:
+            id:
+              type: string
+            name:
+              type: string
+            widgetIds:
+              type: array
+              items:
+                type: string
+
+  position:
+    type: object
+    required: [id, x, y, w, h]
+    additionalProperties: false
+    properties:
+      id:
+        type: string
+        description: layout_id of the widget shown here (a string; quote numeric ids).
+      x:
+        type: number
+        minimum: 0
+        description: Column of the left edge, counted from 0.
+      y:
+        type: number
+        minimum: 0
+        description: Row of the top edge, counted from 0.
+      w:
+        type: number
+        exclusiveMinimum: 0
+        description: Width in columns.
+      h:
+        type: number
+        exclusiveMinimum: 0
+        description: Height in rows.
+      z:
+        type: number
+        description: Stacking order; higher is in front.
+      fixedWidth:
+        type: boolean
+      fixedHeight:
+        type: boolean
+      aspectRatio:
+        type: number
+        exclusiveMinimum: 0
+        description: Height divided by width, kept when resizing (SCADA symbols).
+
+  style:
+    type: object
+    additionalProperties: false
+    description: Board-wide style. Every key is optional; missing keys take the platform default.
+    properties:
+      theme:
+        type: object
+        additionalProperties: false
+        properties:
+          theme_name:
+            enum:
+              - "---"
+              - light
+              - dark
+              - chalk
+              - essos
+              - halloween
+              - infographic
+              - macarons
+              - purple-passion
+              - roma
+              - shine
+              - vintage
+              - walden
+              - westeros
+              - wonderland
+            description: Chart colour theme; "---" means none.
+          theme_object:
+            type: object
+            description: An inline ECharts theme. The editor never writes it.
+      background_color:
+        type: string
+        description: "CSS colour. Default #fefefe."
+      text_color:
+        type: string
+        description: "CSS colour. Default #334d5c."
+      tile_background_color:
+        type: string
+        description: "CSS colour. Default #ffffff80."
+      tile_border_color:
+        type: string
+        description: "CSS colour. Default #fefefe."
+      tile_border_radius:
+        type: string
+        description: CSS length, e.g. 8px.
+      grid_gap:
+        type: number
+        minimum: 0
+        description: Gap between tiles in pixels. Default 8.
+      columns:
+        type: number
+        minimum: 1
+        maximum: 1000
+        description: Grid columns. Default 96.
+      rows:
+        type: number
+        minimum: 1
+        maximum: 1000
+        description: Grid rows. Default 64. Without overflow, the whole grid is scaled onto the screen.
+      cell_size:
+        type: number
+        exclusiveMinimum: 0
+        description: Cell size in pixels when overflow is on. Default 12.
+      overflow:
+        type: boolean
+        description: Scroll instead of scaling the grid onto the screen. Default false.
+      overflowX:
+        type: boolean
+      scaleToFit:
+        type: boolean
+        description: Keep the board's aspect ratio (see aspect_ratio). Forces overflow off.
+      aspect_ratio:
+        description: Width divided by height, used with scaleToFit and gridSnap false. 0, '' or null mean unset.
+        anyOf:
+          - const: 0
+          - type: number
+            minimum: 0.1
+            maximum: 10
+          - const: ""
+          - type: "null"
+      gridSnap:
+        type: boolean
+        description: Snap tiles to the grid. Default true.

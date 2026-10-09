@@ -1,0 +1,234 @@
+# Negative control for scripts/validate.py: every widget below carries one
+# deliberate mistake, and every `# expect:` line must appear in the output as
+# LEVEL, a path containing <path> and a message containing <message>.
+#
+# expect: ERROR widgets[0].chartconfig.subtitle :: did you mean 'subTitle'
+# expect: ERROR widgets[0].chartconfig.dataseries[0].precision :: cannot be bound to data
+# expect: WARN  widgets[0].chartconfig.dataseries[0].value :: only used when ../multiChart
+# expect: ERROR widgets[1].chartconfig.dataseries[0].data.tableRef.format.y :: has no column 'temprature' (did you mean 'temperature'?)
+# expect: ERROR widgets[1].chartconfig.dataseries[0].type :: 'area' is not one of
+# expect: ERROR widgets[1].chartconfig.dataseries[0].data.tableRef.queryParams.series :: needs a complete time window
+# expect: ERROR widgets[2].chartconfig.dataseries[0].data.tableRef.tablename :: no table or transform 'measurement' in data-template.yml (did you mean 'measurements'?)
+# expect: ERROR widgets[3].chartconfig.dataseries[0].value :: tableRef replaces a list
+# expect: ERROR widgets[4].chartconfig.dataseries[0].data :: valueRef gives one value
+# expect: ERROR widgets[5].chartconfig.dataseries[0].data.tableRef.queryParams.series.method :: AVG needs a numeric column; 'machine_id' is string
+# expect: ERROR widgets[6].chartconfig.dataseries[0].value.valueRef.queryParams.limit :: aggregated valueRef needs limit: 1
+# expect: ERROR widgets[7].chartconfig.dataseries[0].precision :: is not a number
+# expect: WARN  widgets[7].chartconfig.title :: decoded wherever it appears
+# expect: WARN  widgets[7].chartconfig.dataseries[0].multiChart :: write $bool:false
+# expect: ERROR widgets[8].chartconfig.columns[0].values.tableRef.format.val :: have no property 'val'
+# expect: ERROR widgets[9].chartconfig.dataseries[0].data.tableRef.queryParams.windowPeriod :: no effect on a transform
+# expect: ERROR widgets[9].chartconfig.dataseries[0].data.tableRef.queryParams.filterAnd[0] :: latest filter does not work on a transform
+# expect: ERROR widgets[10].chartconfig.dataseries[0].data.tableRef.queryParams.filterAnd[0].value :: index of a route segment
+# expect: WARN  widgets[10].chartconfig.dataseries[0].data.tableRef.queryParams.filterAnd[1].dataType :: column 'temperature' is numeric, but the filter says string
+# expect: WARN  widgets[10].chartconfig.dataseries[0].data.tableRef.queryParams.filterAnd[2].value :: no filter widget on this board sets the URL parameter 'site'
+# expect: ERROR widgets[11].chartconfig.dataseries[0].data.tableRef.provider_app :: does not list under consumes
+# expect: WARN  widgets[12].chartconfig.navItems[1].route :: route '/settings' matches no page
+# expect: WARN  widgets[13].chartconfig.parameterKey :: no widget reads 'machine'
+# expect: ERROR widgets[14].chartconfig.formFields[0].targetColumn.column :: has no column 'colour'
+# expect: ERROR widgets[15].package_name :: no widget package 'widget-gaugee'
+# expect: ERROR widgets[16].version :: widget-value@9.9.9 is not published
+# expect: ERROR widgets[17].layout_id :: is already used by widgets[16]
+# expect: WARN  widgets[18].layout_id :: is not placed on any page
+# expect: ERROR layout.gridLayout[3].id :: is placed twice on page /
+# expect: WARN  layout.gridLayout[4].id :: no widget has it
+# expect: WARN  layout.subRoutes.extra.gridLayout[0] :: reaches column 100 but the grid has 96
+# expect: WARN  layout.subRoutes.extra.gridLayout :: widgets cover
+name: broken-board
+widgets:
+    - layout_id: w0
+      package_name: widget-gauge
+      chartconfig:
+          subtitle: $str:typo in the property name
+          dataseries:
+              - label: $str:Temperature
+                multiChart: $bool:true
+                precision:
+                    valueRef: {tablename: measurements, column: temperature, queryParams: {limit: 1}}
+                value:
+                    valueRef: {tablename: measurements, column: temperature, queryParams: {limit: 1}}
+    - layout_id: w1
+      package_name: widget-linechart
+      chartconfig:
+          dataseries:
+              - label: $str:Temperature
+                type: $str:area
+                data:
+                    tableRef:
+                        tablename: measurements
+                        format: {x: tsp, y: temprature}
+                        queryParams:
+                            limit: 100
+                            series: {method: AVG}
+    - layout_id: w2
+      package_name: widget-linechart
+      chartconfig:
+          dataseries:
+              - label: $str:Unknown table
+                data:
+                    tableRef:
+                        tablename: measurement
+                        format: {x: tsp, y: temperature}
+                        queryParams: {limit: 100}
+    - layout_id: w3
+      package_name: widget-value
+      chartconfig:
+          dataseries:
+              - label: $str:List into a number
+                value:
+                    tableRef:
+                        tablename: measurements
+                        format: {value: temperature}
+                        queryParams: {limit: 10}
+    - layout_id: w4
+      package_name: widget-linechart
+      chartconfig:
+          dataseries:
+              - label: $str:Single value into a list
+                data:
+                    valueRef: {tablename: measurements, column: temperature, queryParams: {limit: 1}}
+    - layout_id: w5
+      package_name: widget-linechart
+      chartconfig:
+          dataseries:
+              - label: $str:Average of text
+                data:
+                    tableRef:
+                        tablename: measurements
+                        format: {x: tsp, y: machine_id}
+                        queryParams:
+                            limit: 100
+                            windowPeriod: hour
+                            windowLength: 1
+                            nowMinusPeriods: 0
+                            series: {method: AVG}
+    - layout_id: w6
+      package_name: widget-value
+      chartconfig:
+          dataseries:
+              - label: $str:Readings today
+                value:
+                    valueRef:
+                        tablename: measurements
+                        column: tsp
+                        queryParams:
+                            limit: 5
+                            windowPeriod: day
+                            windowLength: 1
+                            nowMinusPeriods: 0
+                            series: {method: COUNT}
+    - layout_id: w7
+      package_name: widget-value
+      chartconfig:
+          title: Power $str:now
+          dataseries:
+              - label: $str:Power
+                precision: $num:one
+                multiChart: false
+                value:
+                    valueRef: {tablename: measurements, column: power_kw, queryParams: {limit: 1}}
+    - layout_id: w8
+      package_name: widget-table
+      chartconfig:
+          columns:
+              - header: $str:State
+                type: $str:string
+                values:
+                    tableRef:
+                        tablename: machine_status
+                        format: {val: state}
+                        queryParams: {limit: 10}
+    - layout_id: w9
+      package_name: widget-linechart
+      chartconfig:
+          dataseries:
+              - label: $str:Energy
+                data:
+                    tableRef:
+                        tablename: daily_energy
+                        format: {x: tsp, y: energy_kwh}
+                        queryParams:
+                            limit: 100
+                            windowPeriod: day
+                            windowLength: 30
+                            nowMinusPeriods: 0
+                            filterAnd:
+                                - {latest: true, column: '', operator: '=', value: '', dataType: boolean}
+    - layout_id: w10
+      package_name: widget-linechart
+      chartconfig:
+          dataseries:
+              - label: $str:Filters
+                data:
+                    tableRef:
+                        tablename: measurements
+                        format: {x: tsp, y: temperature}
+                        queryParams:
+                            limit: 100
+                            filterAnd:
+                                - {column: machine_id, operator: '=', value: machine, dataType: string, useRoute: true}
+                                - {column: temperature, operator: '>', value: '50', dataType: string}
+                                - {column: machine_id, operator: '=', value: site, dataType: string, useFilter: true}
+    - layout_id: w11
+      package_name: widget-linechart
+      chartconfig:
+          dataseries:
+              - label: $str:Other app
+                data:
+                    tableRef:
+                        tablename: weather
+                        provider_app: weather-station
+                        format: {x: tsp, y: temperature}
+                        queryParams: {limit: 100}
+    - layout_id: w12
+      package_name: widget-navbar
+      chartconfig:
+          navItems:
+              - {label: $str:Home, iconName: $str:home, route: $str:/}
+              - {label: $str:Settings, iconName: $str:settings, route: $str:/settings}
+    - layout_id: w13
+      package_name: widget-filter-dropdown
+      chartconfig:
+          label: $str:Machine
+          parameterKey: $str:machine
+    - layout_id: w14
+      package_name: widget-form
+      chartconfig:
+          formFields:
+              - label: $str:Colour
+                type: $str:textfield
+                targetColumn: {tablename: machine_status, column: colour, column_name: Colour, dataType: string}
+    - layout_id: w15
+      package_name: widget-gaugee
+    - layout_id: w16
+      package_name: widget-value
+      version: 9.9.9
+    - layout_id: w16
+      package_name: widget-label
+    - layout_id: w18
+      package_name: widget-label
+layout:
+    gridLayout:
+        - {id: w0, x: 0, y: 0, w: 48, h: 16}
+        - {id: w1, x: 48, y: 0, w: 48, h: 16}
+        - {id: w2, x: 0, y: 16, w: 48, h: 16}
+        - {id: w2, x: 48, y: 16, w: 48, h: 16}
+        - {id: ghost, x: 0, y: 32, w: 24, h: 8}
+        - {id: w3, x: 24, y: 32, w: 24, h: 8}
+        - {id: w4, x: 48, y: 32, w: 24, h: 8}
+        - {id: w5, x: 72, y: 32, w: 24, h: 8}
+        - {id: w6, x: 0, y: 40, w: 24, h: 8}
+        - {id: w7, x: 24, y: 40, w: 24, h: 8}
+        - {id: w8, x: 48, y: 40, w: 24, h: 8}
+        - {id: w9, x: 72, y: 40, w: 24, h: 8}
+        - {id: w10, x: 0, y: 48, w: 24, h: 8}
+        - {id: w11, x: 24, y: 48, w: 24, h: 8}
+        - {id: w12, x: 48, y: 48, w: 24, h: 8}
+        - {id: w13, x: 72, y: 48, w: 24, h: 8}
+        - {id: w14, x: 0, y: 56, w: 24, h: 8}
+        - {id: w15, x: 24, y: 56, w: 24, h: 8}
+        - {id: w16, x: 48, y: 56, w: 48, h: 8}
+    subRoutes:
+        extra:
+            gridLayout:
+                - {id: w12, x: 90, y: 0, w: 10, h: 10}

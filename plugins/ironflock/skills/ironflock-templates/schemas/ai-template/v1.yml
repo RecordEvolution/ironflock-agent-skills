@@ -1,0 +1,257 @@
+# -----------------------------------------------------------------------------
+# CANONICAL SOURCE  ironflock-landingpage/public/schemas/ai-template/v1.yml
+# PUBLISHED AT      https://ironflock.com/schemas/ai-template/v1.yml
+#
+# Copies in other repos are vendored verbatim. Edit the canonical file, then run
+# `bun run schemas:vendor` in ironflock-landingpage. Never edit a vendored copy.
+#
+# This URL rolls forward: additive changes only. A breaking change (new required
+# field, removed property, tightened enum) must ship as v2.yml — ai templates
+# already in the field validate against v1 and would go red retroactively.
+#
+# Stays on draft-07 deliberately: the json_schema $def below documents the
+# vocabulary an author may use for LLM tool parameters, which is draft-07.
+# -----------------------------------------------------------------------------
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: https://ironflock.com/schemas/ai-template/v1.yml
+title: IronFlock AI Agent Template
+description: >
+  Schema for defining 3rd-party AI agents that are registered as tools
+  to the IronFlock router agent. A template file contains one or more
+  named agents. Exactly one agent should have main: true.
+
+type: object
+minProperties: 1
+additionalProperties:
+  $ref: "#/definitions/agent"
+
+definitions:
+  agent:
+    type: object
+    required:
+      - system_prompt
+      - tools
+      - max_context_tokens
+      - messages_after_summary
+      - max_iterations
+    additionalProperties: false
+    properties:
+      tool_description:
+        type: string
+        maxLength: 2000
+        description: >
+          Manual for the calling agent on WHEN to delegate to this agent
+          and HOW to use it. Only relevant when main is true.
+
+      system_prompt:
+        type: string
+        maxLength: 25000
+        description: >
+          The system prompt given to this agent: its role, the domain
+          semantics of your app, workflows, and rules. Keep reference
+          material out of it — column types, units and meanings belong in
+          data-template.yml (get_schema serves them to the agent on
+          demand), and per-tool usage detail belongs in that tool's own
+          description. The prompt is loaded on every turn of this agent's
+          conversation, so it should stay well below the agent's
+          max_context_tokens (roughly 4 characters per token).
+
+      main:
+        type: boolean
+        default: false
+        description: >
+          If true, this agent is registered as a tool to the IronFlock
+          router agent. If false, it can only be used as a sub-agent
+          via delegate.
+
+      data_access:
+        type: boolean
+        default: false
+        description: >
+          If true, this agent gets two built-in tools: get_schema and
+          execute_sql. They give read-only SQL access to THIS app's own
+          data tables (the tables defined in your data-template.yml) —
+          never to other apps' data. get_schema returns each column's
+          type, unit and description from your data-template.yml, so put
+          per-column documentation there; use the system_prompt only for
+          domain semantics the schema cannot express (e.g. how tables
+          relate, typical queries, units of thought).
+
+      file_access:
+        type: boolean
+        default: false
+        description: >
+          If true, this agent gets two built-in tools: list_app_files and
+          read_app_file. They give read-only access to the files THIS app
+          has stored in FleetFiles — never to other apps' files, and never
+          to anything the chatting user may not already read. The agent can
+          list and search files by path, and read text files and images;
+          searching matches the file PATH, not the file contents, and PDFs
+          and other binary formats cannot be read. Separate from
+          data_access: SQL access to your tables and access to your stored
+          files are different things to hand an agent.
+
+      log_access:
+        type: boolean
+        default: false
+        description: >
+          If true, this agent gets one built-in tool: get_app_logs. It
+          reads the log output of THIS app's own containers on the
+          devices the app runs on — never another app's logs, and only
+          on devices the chatting user may already see. Give it to an
+          agent that should diagnose its own app instead of asking the
+          user to fetch log output. Separate from data_access and
+          file_access: an app's log carries whatever the app happens to
+          print, so opening up your tables or your files says nothing
+          about opening up your logs.
+
+      web_search:
+        type: boolean
+        default: false
+        description: >
+          If true, this agent gets one built-in tool: web_search. It
+          searches the public internet and returns a summarised answer
+          with source links — for datasheets, manufacturer documentation,
+          error codes, standards or anything else your app's own data
+          cannot answer. The search query is sent to an external search
+          service, so say in your system_prompt what the agent may search
+          for; an agent that also has data_access, file_access
+          or log_access could otherwise put what it read into a query.
+
+      max_context_tokens:
+        type: integer
+        minimum: 1024
+        maximum: 200000
+        description: >
+          Maximum number of context tokens for the agent's conversation window.
+
+      messages_after_summary:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        description: >
+          Number of messages to keep unsummarized in the conversation
+          history to preserve important details for the agent.
+
+      max_iterations:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        description: >
+          Maximum number of iterations for the agent to call tools and
+          delegate before giving up. Prevents infinite loops.
+
+      effort:
+        type: string
+        enum: [low, medium, high]
+        description: >
+          How much reasoning the model spends on each turn of this agent's
+          conversation. Lower is faster and cheaper; high is the platform
+          default when omitted. Pick the level by measurement: run your
+          agent's typical tasks at each level and keep the lowest one that
+          still gets every task right.
+
+      tools:
+        type: object
+        minProperties: 1
+        additionalProperties:
+          $ref: "#/definitions/tool"
+        description: >
+          Map of tool names to tool definitions. Each tool either calls
+          a WAMP topic directly or delegates to another agent.
+          A tool must have either 'topic' or 'delegate', not both.
+
+  tool:
+    type: object
+    required:
+      - description
+    additionalProperties: false
+    properties:
+      description:
+        type: string
+        maxLength: 1000
+        description: >
+          Describes what the tool does and how the agent should use it.
+          This is the right place for per-tool usage detail (valid value
+          ranges, side effects, when to prefer it over another tool) —
+          keep such detail here rather than in the system_prompt.
+
+      topic:
+        type: string
+        pattern: "^[a-zA-Z0-9_]+(\\.[a-zA-Z0-9_]+)*$"
+        description: >
+          WAMP topic the tool calls — the same name your app passed to
+          register_device_function(). Mutually exclusive with delegate.
+          Your app registers it per device, so the agent must name a device
+          to call it: a required integer device_key parameter is added to
+          this tool automatically. You do not need to declare it, and your
+          handler never sees it — it addresses the call and is stripped
+          from the payload.
+
+      delegate:
+        type: string
+        description: >
+          Name of another agent in this template to delegate to.
+          Mutually exclusive with topic.
+          Delegate tools automatically receive three built-in parameters
+          that authored `parameters` cannot override: `request` (the
+          delegation text), `conversation_reference` (which persistent
+          sub-conversation to reuse), and `user_facing` (boolean — when
+          true, the delegated agent's answer is forwarded verbatim to the
+          delegating agent's caller and the delegating agent's turn ends;
+          the platform honors it only when the delegation is the round's
+          sole tool call).
+
+      parameters:
+        $ref: "#/definitions/json_schema"
+        description: >
+          A standard JSON Schema object (type: object) describing the
+          tool's input parameters. This is passed directly to the LLM
+          as the function's parameter schema.
+
+          Describe only your own arguments here. A topic tool's device_key
+          is added automatically (see topic); declare it yourself only to
+          give it a better description — it is required either way. The
+          agent fills it from the built-in list_devices tool, which every
+          agent with a topic tool gets automatically and which lists the
+          project's devices and where the app is running.
+
+  json_schema:
+    description: >
+      A JSON Schema object. Supports the full JSON Schema draft-07
+      vocabulary so that arbitrarily nested parameter structures can
+      be expressed.
+    type: object
+    properties:
+      type:
+        type: string
+        description: The JSON Schema type.
+      description:
+        type: string
+        description: Human-readable description of this schema node.
+      properties:
+        type: object
+        additionalProperties:
+          $ref: "#/definitions/json_schema"
+        description: >
+          Property definitions when type is 'object'.
+      items:
+        $ref: "#/definitions/json_schema"
+        description: >
+          Schema for array elements when type is 'array'.
+      required:
+        type: array
+        items:
+          type: string
+        description: >
+          List of required property names (JSON Schema standard).
+      enum:
+        type: array
+        description: Enumerated set of allowed values.
+      default:
+        description: Default value when not provided.
+      additionalProperties:
+        description: >
+          Controls or describes additional properties on an object.
+          Can be a boolean or a nested JSON Schema.
+    additionalProperties: true

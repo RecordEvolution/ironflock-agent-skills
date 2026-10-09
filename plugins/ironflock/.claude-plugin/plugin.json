@@ -1,0 +1,18 @@
+{
+  "name": "ironflock",
+  "description": "Write and validate an IronFlock app's .ironflock templates: boards and widgets, data tables, app parameters, remote-access ports and AI agents.",
+  "author": {
+    "name": "IronFlock",
+    "url": "https://ironflock.com"
+  },
+  "homepage": "https://ironflock.com/docs/app-development",
+  "repository": "https://github.com/RecordEvolution/ironflock-agent-skills",
+  "keywords": [
+    "ironflock",
+    "iot",
+    "dashboard",
+    "widgets",
+    "templates"
+  ],
+  "license": "MIT"
+}

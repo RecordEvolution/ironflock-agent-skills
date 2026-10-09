@@ -1,0 +1,47 @@
+# yaml-language-server: $schema=https://ironflock.com/schemas/data-template/v1.yml
+data:
+  description: Condition monitoring for presses and lathes on the shop floor.
+  tables:
+    - tablename: measurements
+      description: Periodic process measurements, one row per machine and sample.
+      columns:
+        - id: tsp
+          name: Timestamp
+          description: Time of the sample (UTC)
+          dataType: timestamp
+        - id: machine_id
+          name: Machine
+          description: Machine identifier, e.g. press-1
+          dataType: string
+        - id: temperature
+          name: Temperature
+          description: Spindle temperature in °C
+          dataType: numeric
+        - id: vibration
+          name: Vibration
+          description: RMS vibration velocity in mm/s
+          dataType: numeric
+        - id: power_kw
+          name: Power
+          description: Electrical power draw in kW
+          dataType: numeric
+    - tablename: machine_status
+      description: Current operating state per machine; append-only, newest row per machine wins.
+      maintainLatestFlagFor: [machine_id]
+      columns:
+        - id: tsp
+          name: Timestamp
+          description: Time the state was recorded (UTC)
+          dataType: timestamp
+        - id: machine_id
+          name: Machine
+          description: Machine identifier, e.g. press-1
+          dataType: string
+        - id: state
+          name: State
+          description: Operating state, one of RUNNING, IDLE, FAULT
+          dataType: string
+        - id: target_rpm
+          name: Target speed
+          description: Target spindle speed in rpm set from the board
+          dataType: numeric

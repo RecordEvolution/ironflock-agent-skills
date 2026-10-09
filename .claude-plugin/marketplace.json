@@ -1,0 +1,17 @@
+{
+  "name": "ironflock",
+  "owner": {
+    "name": "IronFlock",
+    "url": "https://ironflock.com"
+  },
+  "description": "Claude Code plugins for building apps on the IronFlock IoT platform.",
+  "plugins": [
+    {
+      "name": "ironflock",
+      "source": "./plugins/ironflock",
+      "description": "Write and validate an IronFlock app's .ironflock templates: boards and widgets, data tables, app parameters, remote-access ports and AI agents.",
+      "category": "development",
+      "keywords": ["ironflock", "iot", "dashboard", "widgets", "templates"]
+    }
+  ]
+}

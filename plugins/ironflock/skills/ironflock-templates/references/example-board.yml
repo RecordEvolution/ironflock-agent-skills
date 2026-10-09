@@ -1,0 +1,286 @@
+# Example board-template.yml for an app with two tables:
+#   measurements     tsp, machine_id, temperature, vibration, power_kw
+#   machine_status   tsp, machine_id, state, target_rpm  (maintainLatestFlagFor: [machine_id])
+# Three pages: an overview (/), a machine list (/machines) and a detail page per
+# machine (/machines/*) filtered by the URL. Shows static and data-driven
+# navigation, aggregation, latest-per-entity rows and a fully covered grid.
+# Comments are only for reading here: the board editor drops them on save.
+name: machine-monitor
+widgets:
+    - layout_id: nav
+      package_name: widget-sidenav
+      version: 1.0.19
+      chartconfig:
+          title: $str:Machine Monitor
+          route: $str:/
+          navItems:
+              - label: $str:Overview
+                iconName: $str:dashboard
+                route: $str:/
+              - label: $str:Machines
+                iconName: $str:precision_manufacturing
+                route: $str:/machines/
+    - layout_id: temperature-gauges
+      package_name: widget-gauge
+      version: 1.7.38
+      chartconfig:
+          title: $str:Spindle temperature
+          subTitle: $str:Latest reading per machine
+          dataseries:
+              - label: $str:Temperature
+                unit: $str:°C
+                precision: $num:1
+                multiChart: $bool:true
+                data:
+                    tableRef:
+                        tablename: measurements
+                        format:
+                            tsp: tsp
+                            value: temperature
+                            pivot: machine_id
+                        queryParams:
+                            limit: 100
+                            windowPeriod: minute
+                            windowLength: 5
+                            nowMinusPeriods: 0
+                sections:
+                    gaugeMinValue: $num:0
+                    sectionLimits:
+                        - limit: $num:70
+                          sectionColor: $str:#4caf50
+                        - limit: $num:85
+                          sectionColor: $str:#ff9800
+                        - limit: $num:100
+                          sectionColor: $str:#f44336
+    - layout_id: power
+      package_name: widget-value
+      version: 1.1.33
+      chartconfig:
+          title: $str:Power draw
+          subTitle: $str:Latest reading per machine
+          dataseries:
+              - label: $str:Power
+                unit: $str:kW
+                precision: $num:1
+                multiChart: $bool:true
+                data:
+                    tableRef:
+                        tablename: measurements
+                        format:
+                            tsp: tsp
+                            value: power_kw
+                            pivot: machine_id
+                        queryParams:
+                            limit: 100
+                            windowPeriod: minute
+                            windowLength: 5
+                            nowMinusPeriods: 0
+    - layout_id: trend
+      package_name: widget-linechart
+      version: 1.7.9
+      chartconfig:
+          title: $str:Temperature, last 24 hours
+          subTitle: $str:Hourly average per machine
+          axis:
+              timeseries: $bool:true
+              yAxisLabel: $str:°C
+          dataseries:
+              - label: $str:Temperature
+                type: $str:line
+                data:
+                    tableRef:
+                        tablename: measurements
+                        format:
+                            x: tsp
+                            y: temperature
+                            pivot: machine_id
+                        queryParams:
+                            limit: 3000
+                            windowPeriod: hour
+                            windowLength: 24
+                            nowMinusPeriods: 0
+                            series:
+                                method: AVG
+                                bucket:
+                                    length: 1
+                                    period: hour
+    - layout_id: states
+      package_name: widget-table
+      version: 1.1.23
+      chartconfig:
+          title: $str:Machine state
+          columns:
+              - header: $str:Machine
+                type: $str:string
+                values:
+                    tableRef:
+                        tablename: machine_status
+                        format:
+                            value: machine_id
+                        queryParams:
+                            limit: 50
+                            filterAnd:
+                                - latest: true
+                                  column: ''
+                                  operator: '='
+                                  value: ''
+                                  dataType: boolean
+              - header: $str:State
+                type: $str:state
+                values:
+                    tableRef:
+                        tablename: machine_status
+                        format:
+                            value: state
+                        queryParams:
+                            limit: 50
+                            filterAnd:
+                                - latest: true
+                                  column: ''
+                                  operator: '='
+                                  value: ''
+                                  dataType: boolean
+                styling:
+                    stateMap: "$str:'RUNNING', '#4caf50', 'IDLE', '#9e9e9e', 'FAULT', '#f44336'"
+              - header: $str:Updated
+                type: $str:timestamp
+                values:
+                    tableRef:
+                        tablename: machine_status
+                        format:
+                            value: tsp
+                        queryParams:
+                            limit: 50
+                            filterAnd:
+                                - latest: true
+                                  column: ''
+                                  operator: '='
+                                  value: ''
+                                  dataType: boolean
+    - layout_id: machine-list
+      package_name: widget-sidenav
+      version: 1.0.19
+      chartconfig:
+          title: $str:Machines
+          navItems:
+              tableRef:
+                  tablename: machine_status
+                  format:
+                      label: machine_id
+                      iconName: $str:precision_manufacturing
+                      route: machine_id
+                  queryParams:
+                      limit: 50
+                      filterAnd:
+                          - latest: true
+                            column: ''
+                            operator: '='
+                            value: ''
+                            dataType: boolean
+    - layout_id: machines-hint
+      package_name: widget-markdown
+      version: 1.0.11
+      chartconfig:
+          markdown: |
+              ## Machines
+              Pick a machine on the left to see its temperature, vibration and power.
+    - layout_id: machine-power
+      package_name: widget-value
+      version: 1.1.33
+      chartconfig:
+          title: $str:Power draw
+          dataseries:
+              - label: $str:Power
+                unit: $str:kW
+                precision: $num:1
+                value:
+                    valueRef:
+                        tablename: measurements
+                        column: power_kw
+                        queryParams:
+                            limit: 1
+                            filterAnd:
+                                - column: machine_id
+                                  operator: '='
+                                  value: '2'
+                                  dataType: string
+                                  useRoute: true
+    - layout_id: machine-trend
+      package_name: widget-linechart
+      version: 1.7.9
+      chartconfig:
+          title: $str:Temperature and vibration
+          subTitle: $str:Last 24 hours
+          axis:
+              timeseries: $bool:true
+              yAxisLabel: $str:°C
+              yAxisLabelRight: $str:mm/s
+          dataseries:
+              - label: $str:Temperature
+                type: $str:line
+                data:
+                    tableRef:
+                        tablename: measurements
+                        format:
+                            x: tsp
+                            y: temperature
+                        queryParams:
+                            limit: 3000
+                            windowPeriod: hour
+                            windowLength: 24
+                            nowMinusPeriods: 0
+                            series:
+                                method: AVG
+                            filterAnd:
+                                - column: machine_id
+                                  operator: '='
+                                  value: '2'
+                                  dataType: string
+                                  useRoute: true
+              - label: $str:Vibration
+                type: $str:line
+                yAxis: $str:right
+                data:
+                    tableRef:
+                        tablename: measurements
+                        format:
+                            x: tsp
+                            y: vibration
+                        queryParams:
+                            limit: 3000
+                            windowPeriod: hour
+                            windowLength: 24
+                            nowMinusPeriods: 0
+                            series:
+                                method: AVG
+                            filterAnd:
+                                - column: machine_id
+                                  operator: '='
+                                  value: '2'
+                                  dataType: string
+                                  useRoute: true
+layout:
+    gridLayout:
+        - {id: nav, x: 0, y: 0, w: 16, h: 64}
+        - {id: temperature-gauges, x: 16, y: 0, w: 52, h: 24}
+        - {id: power, x: 68, y: 0, w: 28, h: 24}
+        - {id: trend, x: 16, y: 24, w: 52, h: 40}
+        - {id: states, x: 68, y: 24, w: 28, h: 40}
+    subRoutes:
+        machines:
+            gridLayout:
+                - {id: nav, x: 0, y: 0, w: 16, h: 64}
+                - {id: machine-list, x: 16, y: 0, w: 16, h: 64}
+                - {id: machines-hint, x: 32, y: 0, w: 64, h: 64}
+            subRoutes:
+                '*':
+                    gridLayout:
+                        - {id: nav, x: 0, y: 0, w: 16, h: 64}
+                        - {id: machine-list, x: 16, y: 0, w: 16, h: 64}
+                        - {id: machine-power, x: 32, y: 0, w: 64, h: 16}
+                        - {id: machine-trend, x: 32, y: 16, w: 64, h: 48}
+style:
+    theme:
+        theme_name: light
+    columns: 96
+    rows: 64

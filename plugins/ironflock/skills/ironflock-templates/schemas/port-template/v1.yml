@@ -1,0 +1,43 @@
+# -----------------------------------------------------------------------------
+# CANONICAL SOURCE  ironflock-landingpage/public/schemas/port-template/v1.yml
+# PUBLISHED AT      https://ironflock.com/schemas/port-template/v1.yml
+#
+# Copies in other repos are vendored verbatim. Edit the canonical file, then run
+# `bun run schemas:vendor` in ironflock-landingpage. Never edit a vendored copy.
+#
+# This URL rolls forward: additive changes only. A breaking change (new required
+# field, removed property, tightened enum) must ship as v2.yml — port templates
+# already in the field validate against v1 and would go red retroactively.
+# -----------------------------------------------------------------------------
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: https://ironflock.com/schemas/port-template/v1.yml
+title: IronFlock Remote Access Ports Template
+description: Schema for defining service ports and remote access configuration.
+type: object
+properties:
+  ports:
+    type: array
+    items:
+      type: object
+      required: [name, port]
+      properties:
+        name:
+          type: string
+          description: Human-readable label for the port in the UI.
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          description: Port number exposed by the app.
+        main:
+          type: boolean
+          description: Whether this is the primary access point.
+        protocol:
+          type: string
+          enum: [http, https, tcp, udp]
+          default: http
+          description: Protocol served by the app on this port.
+        remote_port_environment:
+          type: string
+          description: Name of the environment variable for the remote port (TCP and UDP only).
+additionalProperties: false

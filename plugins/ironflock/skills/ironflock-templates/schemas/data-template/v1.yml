@@ -1,0 +1,330 @@
+# -----------------------------------------------------------------------------
+# CANONICAL SOURCE  ironflock-landingpage/public/schemas/data-template/v1.yml
+# PUBLISHED AT      https://ironflock.com/schemas/data-template/v1.yml
+#
+# Copies in other repos are vendored verbatim. Edit the canonical file, then run
+# `bun run schemas:vendor` in ironflock-landingpage. Never edit a vendored copy.
+#
+# This URL rolls forward: additive changes only. A breaking change (new required
+# field, removed property, tightened enum) must ship as v2.yml — data templates
+# already in the field validate against v1 and would go red retroactively.
+# -----------------------------------------------------------------------------
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://ironflock.com/schemas/data-template/v1.yml
+title: IronFlock Data Template
+description: Schema for data.yaml files that define FleetDB tables and transforms
+
+type: object
+required: [data]
+additionalProperties: false
+
+properties:
+  consumes:
+    type: array
+    description: List of other apps whose data backends this app reads (cross-app data access)
+    items:
+      $ref: "#/$defs/consume"
+  data:
+    type: object
+    description: Root data configuration
+    additionalProperties: false
+    properties:
+      description:
+        type: string
+        description: Human and AI-readable description of what this app does, what data it collects, and its purpose.
+      tables:
+        type: array
+        description: List of database tables to create
+        items:
+          $ref: "#/$defs/table"
+      transforms:
+        type: array
+        description: List of materialized views or views for data transformation
+        items:
+          $ref: "#/$defs/transform"
+  files:
+    type: object
+    description: Managed object storage (FleetFiles) for this app. Optional — a single namespace named "default" exists even with no declaration.
+    additionalProperties: false
+    properties:
+      description:
+        type: string
+        description: Human and AI-readable description of what this app stores as files.
+      quotaBytes:
+        type: integer
+        minimum: 1048576
+        description: >-
+          Suggested total storage budget for this app's files, in bytes. A
+          SUGGESTION only — the project user can override it in the app's
+          storage settings, and their value wins. Omit to accept the platform
+          default for the stage. Enforced by the object store itself on the
+          app's storage, so it applies to every transfer path including direct
+          uploads.
+        examples: [10737418240, 107374182400]
+      namespaces:
+        type: array
+        description: >-
+          Named policy scopes for this app's files. OPTIONAL — with none
+          declared you get a single namespace called "default" and
+          organise inside it with key paths. Declare one only when a set of
+          objects needs DIFFERENT RULES (retention, sharing, allowed content
+          types), because that is all a namespace is: a key prefix that carries
+          policy. It is not a separate S3 bucket; every namespace lives in the
+          app's one bucket.
+        items:
+          $ref: "#/$defs/namespace"
+
+$defs:
+  consume:
+    type: object
+    required: [app]
+    additionalProperties: false
+    properties:
+      app:
+        type: string
+        pattern: "^(\\*|[A-Za-z0-9._-]+)$"
+        description: Name of the provider app whose data backend this app reads, or "*" to consume all non-platform apps' data in the project. Case-insensitive — legacy apps predating the lowercase-name invariant may be named in their original case; the parser normalizes to lowercase.
+      reason:
+        type: string
+        description: Human-readable reason for the access, shown to the user when granting
+
+  namespace:
+    type: object
+    required: [name]
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+        pattern: "^[a-z][a-z0-9-]{1,62}$"
+        description: 'Namespace name (lowercase letters, digits and hyphen; must start with a letter; no underscore, so it stays valid as an S3 key segment). It becomes the key prefix objects are stored under. Reserved: sys, system, ironflock, ironflock-*'
+        not:
+          anyOf:
+            - enum: [sys, system, ironflock]
+            - pattern: "^ironflock-"
+      description:
+        type: string
+        description: Human and AI-readable description of what this namespace contains.
+      private:
+        type: boolean
+        description: "If true, this namespace is excluded from cross-app data access (default: false = shared, exactly like tables)"
+      contentTypes:
+        type: array
+        items:
+          type: string
+          pattern: "^[a-z0-9.*+-]+/[a-zA-Z0-9.*+-]+$"
+        description: 'Allowed MIME types for objects in this namespace, globs permitted (default: ["*/*"] = any).'
+        examples: [["image/jpeg", "image/png"], ["application/pdf"], ["image/*"]]
+      maxObjectBytes:
+        type: integer
+        minimum: 1
+        maximum: 5368709120
+        description: "Largest single object in bytes. Default 104857600 (100 MiB), hard ceiling 5368709120 (5 GiB)."
+        examples: [20971520, 104857600]
+      retention:
+        type: object
+        additionalProperties: false
+        description: "Lifecycle policy for objects in this namespace."
+        properties:
+          deleteAfter:
+            type: string
+            pattern: "^[1-9][0-9]* (hour|day|week|month|year)s?$"
+            description: "Automatically delete objects older than this. Omit to keep objects forever."
+            examples: ["30 days", "1 year"]
+      share:
+        type: string
+        enum: [authenticated, link, none]
+        description: "How objects may be shared. 'authenticated' (DEFAULT) = reachable only through the stable URL, which requires a signed-in requestor holding READ on this data backend. 'link' = additionally allows minting expiring bearer links. 'none' = no links at all; API access only."
+      linkMaxTtl:
+        type: string
+        pattern: "^[1-9][0-9]*(s|m|h)$"
+        description: "Ceiling for the lifetime of an expiring link. Only meaningful with share: link. Default 15m, hard ceiling 24h."
+        examples: ["15m", "1h"]
+      renderInline:
+        type: boolean
+        description: "Serve render-safe types (png, jpeg, webp, gif, pdf, plain text) inline instead of as a download. Default false. SVG is always served as an attachment regardless."
+
+  table:
+    type: object
+    required: [tablename, columns]
+    additionalProperties: false
+    properties:
+      tablename:
+        type: string
+        pattern: "^[a-z][a-z0-9_]*$"
+        description: Table name (lowercase, no spaces, alphanumeric and underscores only)
+      description:
+        type: string
+        description: Human and AI-readable description of what this table contains.
+      private:
+        type: boolean
+        description: "If true, this table is excluded from cross-app data access (default: false = shared)"
+      chunkTimeInterval:
+        type: string
+        description: "TimescaleDB chunk time interval (e.g., '1 day', '7 days')"
+        examples: ["1 day", "7 days", "1 month"]
+      dropAfter:
+        type: string
+        description: "Retention policy - automatically drop data older than this (e.g., '30 days')"
+        examples: ["30 days", "90 days", "1 year"]
+      maintainLatestFlagFor:
+        type: array
+        items:
+          type: string
+        description: "Entity-key columns. Enables 'latest per entity' reads (DISTINCT ON) and marks these columns as key columns in the UI. Usually ['device_key']."
+        examples: [[device_key], [device_key, sensor_id]]
+      columnstore:
+        type: boolean
+        description: "TimescaleDB columnstore (hypercore). Default true: aged chunks are compressed to columnar storage while the hot chunk stays rowstore. Set false to keep the table fully rowstore (e.g. tiny dimension tables)."
+      columnstoreAfter:
+        type: string
+        description: "Age at which chunks convert to columnstore. Default '14 days'. MUST exceed the max device offline/backfill window (late inserts into compressed chunks are slow)."
+        examples: ["14 days", "30 days"]
+      downsample:
+        type: object
+        additionalProperties: false
+        description: "Opt-in continuous downsampling for series reads: a TimescaleDB continuous aggregate '<tablename>_ds' materializes per-bucket partial aggregates for every numeric/bigint column, so long-window charts read pre-aggregated buckets instead of raw rows and survive the raw 'dropAfter' retention."
+        properties:
+          bucket:
+            type: string
+            pattern: "^[1-9][0-9]* (second|minute|hour|day)s?$"
+            description: "Fine bucket width of the downsampled series. Default '1 minute'. Fixed-width units only (seconds..days), between 1 second and 1 day; must divide 1 day evenly so bucket boundaries stay on the UTC grid."
+            examples: ["1 minute", "10 seconds", "1 hour"]
+          keepFor:
+            type: string
+            description: "Retention for the downsampled buckets (e.g. '1 year'). Must not be shorter than the table's 'dropAfter' when both are set. Omit to keep downsampled history forever."
+            examples: ["1 year", "2 years"]
+          paths:
+            type: array
+            items:
+              type: string
+            description: "JSON-path refs (same notation as filters, e.g. 'json_data.temp' or \"json_data['k']\") whose numeric leaf values are downsampled alongside plain columns. The base must be a json column. Non-numeric leaf values count as NULL in downsampled answers."
+            examples: [["json_data.temp", "json_data.pressure"]]
+      columns:
+        type: array
+        description: "List of columns in the table. Must include a 'tsp' column of type 'timestamp'."
+        minItems: 1
+        items:
+          $ref: "#/$defs/column"
+        contains:
+          type: object
+          required: [id, dataType]
+          properties:
+            id:
+              const: tsp
+            dataType:
+              const: timestamp
+
+  transform:
+    type: object
+    required: [tablename, materialize, schedule, sql, columns]
+    additionalProperties: false
+    properties:
+      tablename:
+        type: string
+        pattern: "^[a-z][a-z0-9_]*$"
+        description: Transform/view name (lowercase, no spaces, alphanumeric and underscores only)
+      description:
+        type: string
+        description: Human and AI-readable description of what this transform/view contains.
+      private:
+        type: boolean
+        description: "If true, this transform is excluded from cross-app data access (default: false = shared)"
+      materialize:
+        type: boolean
+        description: "If true, creates a materialized view (stored on disk). If false, creates a regular view."
+      schedule:
+        type: string
+        description: Cron schedule for refreshing the materialized view
+        examples: ["*/5 * * * *", "0 * * * *", "0 0 * * *"]
+      sql:
+        type: string
+        description: SQL query that defines the view/transform
+      columns:
+        type: array
+        description: Column definitions for the transform output
+        minItems: 1
+        items:
+          $ref: "#/$defs/transformColumn"
+
+  column:
+    type: object
+    required: [id, name, description, dataType]
+    additionalProperties: false
+    properties:
+      id:
+        type: string
+        pattern: "^[a-z][a-z0-9_]*$"
+        description: "Column identifier (lowercase, no spaces). Reserved names: device_key, latest_flag, authid"
+        not:
+          enum: [device_key, latest_flag, authid]
+      name:
+        type: string
+        description: Human-readable column name for display
+      description:
+        type: string
+        description: Description of what this column contains
+      dataType:
+        type: string
+        enum: [numeric, bigint, timestamp, string, boolean, json]
+        description: Data type of the column
+      path:
+        type: string
+        description: "JSON path to extract the value from incoming data (default: args[0].{id})"
+        examples: ["args[0].temperature", "args[0].sensor.value"]
+      secret:
+        type: boolean
+        description: >-
+          If true, FleetDB encrypts this column's values at rest (AES-256-GCM) and never
+          returns the plaintext on the normal read paths: dashboards, history queries and
+          realtime events get the placeholder "__secret__", while SQL reads get the stored
+          ciphertext. Read the plaintext from your app with
+          the SDK's revealSecrets()/reveal_secrets(), or compare a candidate without reading
+          it with verifySecret()/verify_secret(); both are callable only by the app's own
+          containers, never from a browser or a consuming app. Only dataType 'string'
+          columns can be secret, 'tsp' cannot, and a secret column cannot be an entity key
+          (maintainLatestFlagFor) — the ciphertext is randomized per row, so equality,
+          ordering and grouping on it are meaningless. The flag cannot be added to or
+          removed from a column that already exists; rename the column instead.
+    allOf:
+      # `required: [secret]` is load-bearing: without it a column that omits
+      # `secret` vacuously satisfies the `if` and every existing template would
+      # be forced to dataType: string. `if/then` (rather than a flat allOf of
+      # two branches) makes ajv point the error at the offending column.
+      - if:
+          properties:
+            secret:
+              const: true
+          required: [secret]
+        then:
+          properties:
+            dataType:
+              const: string
+
+  transformColumn:
+    type: object
+    required: [id, name, description, dataType]
+    additionalProperties: false
+    properties:
+      id:
+        type: string
+        pattern: "^[a-z][a-z0-9_]*$"
+        description: Column identifier (lowercase, no spaces)
+      name:
+        type: string
+        description: Human-readable column name for display
+      description:
+        type: string
+        description: Description of what this column contains
+      dataType:
+        type: string
+        enum: [numeric, bigint, timestamp, string, boolean, json]
+        description: Data type of the column
+      secret:
+        type: boolean
+        description: >-
+          Marks this transform output column as carrying an already-encrypted value.
+          FleetDB does NOT encrypt transform output — a transform is a view over the base
+          table, and selecting a secret base column simply passes the ciphertext through.
+          This flag only tells dashboards, the SQL workbench and the AI agent to mask the
+          column and not to filter or aggregate on it. reveal/verify are not available for
+          transforms; read the secret from its base table instead.
