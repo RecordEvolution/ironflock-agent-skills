@@ -15,10 +15,9 @@
 # checked by the ironflock-templates skill's validator against the widget
 # version the template pins.
 #
-# The board editor rewrites this file as plain YAML and drops comments, so a
-# `# yaml-language-server: $schema=` line does not survive a save. Associate the
-# schema in editor settings instead (yaml.schemas glob on
-# .ironflock/board-template.yml).
+# Start the file with `# yaml-language-server: $schema=` and this URL, like the
+# other templates. Saving the board in the board editor keeps comments; older
+# platform versions dropped them, so re-add the line if it has gone missing.
 # -----------------------------------------------------------------------------
 $schema: "https://json-schema.org/draft/2020-12/schema"
 $id: https://ironflock.com/schemas/board-template/v1.yml

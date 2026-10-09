@@ -1,10 +1,10 @@
+# yaml-language-server: $schema=https://ironflock.com/schemas/board-template/v1.yml
 # Example board-template.yml for an app with two tables:
 #   measurements     tsp, machine_id, temperature, vibration, power_kw
 #   machine_status   tsp, machine_id, state, target_rpm  (maintainLatestFlagFor: [machine_id])
 # Three pages: an overview (/), a machine list (/machines) and a detail page per
 # machine (/machines/*) filtered by the URL. Shows static and data-driven
 # navigation, aggregation, latest-per-entity rows and a fully covered grid.
-# Comments are only for reading here: the board editor drops them on save.
 name: machine-monitor
 widgets:
     - layout_id: nav

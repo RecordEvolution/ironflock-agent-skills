@@ -83,10 +83,11 @@ config needs the literal prefixes and data references described in board-templat
 - **Use only names that exist.** Every table, column and widget property you write
   must exist in data-template.yml or the widget's schema. The platform ignores unknown
   keys silently, so an invented key renders as nothing rather than as an error.
-- **Keep the schema line.** Start data, env, port and ai templates with
+- **Keep the schema line.** Start every template with
   `# yaml-language-server: $schema=https://ironflock.com/schemas/<name>/v1.yml`, so
-  the developer's editor validates the file too. Leave it out of
-  board-template.yml: the board editor rewrites that file and drops comments.
+  the developer's editor validates the file too. Older platform versions dropped
+  comments from board-template.yml when the board was saved in the editor, so
+  re-add the line there if it has gone missing.
 - **Leave platform-only values to the board editor.** The numeric app and device keys
   that switch and SCADA actions target only exist in a running project. Leave them
   out and tell the user to pick them in the editor.

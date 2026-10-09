@@ -206,9 +206,7 @@ def check_schema(name: str, doc: Doc, report: Report) -> bool:
         ok = False
     first_line = (doc.root.start_mark.buffer or "").split("\n", 1)[0] if doc.root else ""
     expected = f"https://ironflock.com/schemas/{name}/v1.yml"
-    # The board editor rewrites board-template.yml without comments, so its
-    # schema line would not survive the next save; don't ask for it there.
-    if name != "board-template" and expected not in first_line:
+    if expected not in first_line:
         report.warn(
             doc,
             [],

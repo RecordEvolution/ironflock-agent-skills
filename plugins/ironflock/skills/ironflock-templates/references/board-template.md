@@ -29,6 +29,7 @@ latest-per-machine table. Read it before writing your first board.
 ## Anatomy
 
 ```yaml
+# yaml-language-server: $schema=https://ironflock.com/schemas/board-template/v1.yml
 name: machine-monitor                # the app name
 widgets:
     - layout_id: temperature         # this widget's id on the board
@@ -70,9 +71,11 @@ style:
 - **`custom_style`**: `text_color`, `tile_background_color`, `tile_border_color`
   and `tile_border_radius` (e.g. `8px`).
 
-The editor rewrites the whole file when someone saves the board. It drops YAML
-comments, sorts widgets by `layout_id` and pins versions, so don't put comments or
-a `# yaml-language-server` line in this file.
+Start the file with the schema line shown above, like the other templates. The
+editor rewrites the file when someone saves the board: it sorts widgets by
+`layout_id` and pins versions, but keeps comments, including the schema line and
+any comment above a widget. Older platform versions dropped comments on save, so
+re-add the schema line if it has gone missing.
 
 ## Literal values
 
