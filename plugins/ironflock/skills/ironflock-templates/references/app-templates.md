@@ -81,9 +81,12 @@ Parameters the user can set per device or per device group without a custom UI.
 
 Docs: <https://ironflock.com/docs/remote-access/port-template>
 
-Ports the app serves (a web UI, a video stream, VNC, an OPC UA server) that
-privileged users may open as a remote-access tunnel. Declaring a port never opens
-it by itself.
+Ports the app serves (a web UI, a video stream, VNC, an OPC UA server), offered
+as remote-access tunnels. A production install switches every declared port's
+tunnel on; users with the network privilege on the device can switch it off. An
+`http` tunnel stays private (IronFlock login or account API key) unless the port
+is switched Public; a `tcp`/`udp` tunnel is a raw port with no login in front, so
+the app must authenticate its clients itself.
 
 - `ports: [{name, port, main?, protocol?, remote_port_environment?}]`. `port` is the
   port the app listens on. `protocol` defaults to `http`, which is served to the
