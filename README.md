@@ -22,14 +22,14 @@ exist.
 In Claude Code:
 
 ```text
-/plugin marketplace add RecordEvolution/ironflock-agent-skills
+/plugin marketplace add IronFlock/agent-skills
 /plugin install ironflock@ironflock
 ```
 
 Or from a shell:
 
 ```bash
-claude plugin marketplace add RecordEvolution/ironflock-agent-skills
+claude plugin marketplace add IronFlock/agent-skills
 claude plugin install ironflock@ironflock
 ```
 
@@ -44,7 +44,7 @@ app's `.claude/settings.json`. It loads once a person trusts the folder:
 {
   "extraKnownMarketplaces": {
     "ironflock": {
-      "source": { "source": "github", "repo": "RecordEvolution/ironflock-agent-skills" },
+      "source": { "source": "github", "repo": "IronFlock/agent-skills" },
       "autoUpdate": true
     }
   },
